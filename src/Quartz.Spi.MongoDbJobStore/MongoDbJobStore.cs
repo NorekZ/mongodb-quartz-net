@@ -125,7 +125,7 @@ namespace Quartz.Spi.MongoDbJobStore
             Log.Trace($"Scheduler {_schedulerId} initialize");
 
             var url = new MongoUrl(ConnectionString);
-            _client = new MongoClient(ConnectionString);
+            CreateMongoClient();
             _database = _client.GetDatabase(url.DatabaseName);
             _lockManager = new LockManager(_database, InstanceName, CollectionPrefix);
             _schedulerRepository = new SchedulerRepository(_database, InstanceName, CollectionPrefix);
@@ -136,6 +136,11 @@ namespace Quartz.Spi.MongoDbJobStore
             _calendarRepository = new CalendarRepository(_database, InstanceName, CollectionPrefix);
 
             return Task.FromResult(true);
+        }
+
+        protected virtual void CreateMongoClient()
+        {
+            _client = new MongoClient(ConnectionString);
         }
 
         public async Task SchedulerStarted(CancellationToken token = default(CancellationToken))
