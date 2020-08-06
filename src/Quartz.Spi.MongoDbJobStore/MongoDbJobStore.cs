@@ -118,7 +118,7 @@ namespace Quartz.Spi.MongoDbJobStore
         public int ThreadPoolSize { get; set; }
 
         public Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             _schedulerSignaler = signaler;
             _schedulerId = new SchedulerId(InstanceId, InstanceName);
@@ -138,7 +138,7 @@ namespace Quartz.Spi.MongoDbJobStore
             return Task.FromResult(true);
         }
 
-        public async Task SchedulerStarted(CancellationToken token = default(CancellationToken))
+        public async Task SchedulerStarted(CancellationToken token = default)
         {
             Log.Trace($"Scheduler {_schedulerId} started");
             await _schedulerRepository.AddScheduler(new Scheduler
@@ -162,21 +162,21 @@ namespace Quartz.Spi.MongoDbJobStore
             _schedulerRunning = true;
         }
 
-        public async Task SchedulerPaused(CancellationToken token = default(CancellationToken))
+        public async Task SchedulerPaused(CancellationToken token = default)
         {
             Log.Trace($"Scheduler {_schedulerId} paused");
             await _schedulerRepository.UpdateState(_schedulerId.Id, SchedulerState.Paused).ConfigureAwait(false);
             _schedulerRunning = false;
         }
 
-        public async Task SchedulerResumed(CancellationToken token = default(CancellationToken))
+        public async Task SchedulerResumed(CancellationToken token = default)
         {
             Log.Trace($"Scheduler {_schedulerId} resumed");
             await _schedulerRepository.UpdateState(_schedulerId.Id, SchedulerState.Resumed).ConfigureAwait(false);
             _schedulerRunning = true;
         }
 
-        public async Task Shutdown(CancellationToken token = default(CancellationToken))
+        public async Task Shutdown(CancellationToken token = default)
         {
             Log.Trace($"Scheduler {_schedulerId} shutdown");
             if (_misfireHandler != null)
@@ -195,11 +195,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task StoreJobAndTrigger(IJobDetail newJob, IOperableTrigger newTrigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     await StoreJobInternal(newJob, false).ConfigureAwait(false);
                     await StoreTriggerInternal(newTrigger, newJob, false, Models.TriggerState.Waiting, false, false,
@@ -216,24 +216,24 @@ namespace Quartz.Spi.MongoDbJobStore
             }
         }
 
-        public Task<bool> IsJobGroupPaused(string groupName, CancellationToken token = default(CancellationToken))
+        public Task<bool> IsJobGroupPaused(string groupName, CancellationToken token = default)
         {
             // This is not implemented in the core ADO stuff, so we won't implement it here either
             throw new NotImplementedException();
         }
 
-        public Task<bool> IsTriggerGroupPaused(string groupName, CancellationToken token = default(CancellationToken))
+        public Task<bool> IsTriggerGroupPaused(string groupName, CancellationToken token = default)
         {
             // This is not implemented in the core ADO stuff, so we won't implement it here either
             throw new NotImplementedException();
         }
 
         public async Task StoreJob(IJobDetail newJob, bool replaceExisting,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     await StoreJobInternal(newJob, replaceExisting).ConfigureAwait(false);
                 }
@@ -246,11 +246,11 @@ namespace Quartz.Spi.MongoDbJobStore
 
         public async Task StoreJobsAndTriggers(
             IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     foreach (var job in triggersAndJobs.Keys)
                     {
@@ -271,11 +271,11 @@ namespace Quartz.Spi.MongoDbJobStore
             }
         }
 
-        public async Task<bool> RemoveJob(JobKey jobKey, CancellationToken token = default(CancellationToken))
+        public async Task<bool> RemoveJob(JobKey jobKey, CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     return await RemoveJobInternal(jobKey).ConfigureAwait(false);
                 }
@@ -287,11 +287,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<bool> RemoveJobs(IReadOnlyCollection<JobKey> jobKeys,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     return jobKeys.Aggregate(true, (current, jobKey) => current && RemoveJobInternal(jobKey).Result);
                 }
@@ -302,16 +302,16 @@ namespace Quartz.Spi.MongoDbJobStore
             }
         }
 
-        public async Task<IJobDetail> RetrieveJob(JobKey jobKey, CancellationToken token = default(CancellationToken))
+        public async Task<IJobDetail> RetrieveJob(JobKey jobKey, CancellationToken token = default)
         {
             var result = await _jobDetailRepository.GetJob(jobKey).ConfigureAwait(false);
             return result?.GetJobDetail();
         }
 
         public async Task StoreTrigger(IOperableTrigger newTrigger, bool replaceExisting,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
-            using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+            await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
             {
                 await StoreTriggerInternal(newTrigger, null, replaceExisting, Models.TriggerState.Waiting, false, false,
                     cancellationToken);
@@ -319,11 +319,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<bool> RemoveTrigger(TriggerKey triggerKey,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     return await RemoveTriggerInternal(triggerKey).ConfigureAwait(false);
                 }
@@ -335,11 +335,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<bool> RemoveTriggers(IReadOnlyCollection<TriggerKey> triggerKeys,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     return triggerKeys.Aggregate(true,
                         (current, triggerKey) => current && RemoveTriggerInternal(triggerKey).Result);
@@ -352,11 +352,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger newTrigger,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     return await ReplaceTriggerInternal(triggerKey, newTrigger).ConfigureAwait(false);
                 }
@@ -368,32 +368,32 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<IOperableTrigger> RetrieveTrigger(TriggerKey triggerKey,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             var result = await _triggerRepository.GetTrigger(triggerKey).ConfigureAwait(false);
             return result?.GetTrigger() as IOperableTrigger;
         }
 
-        public async Task<bool> CalendarExists(string calName, CancellationToken token = default(CancellationToken))
+        public async Task<bool> CalendarExists(string calName, CancellationToken token = default)
         {
             return await _calendarRepository.CalendarExists(calName).ConfigureAwait(false);
         }
 
-        public async Task<bool> CheckExists(JobKey jobKey, CancellationToken token = default(CancellationToken))
+        public async Task<bool> CheckExists(JobKey jobKey, CancellationToken token = default)
         {
             return await _jobDetailRepository.JobExists(jobKey).ConfigureAwait(false);
         }
 
-        public async Task<bool> CheckExists(TriggerKey triggerKey, CancellationToken token = default(CancellationToken))
+        public async Task<bool> CheckExists(TriggerKey triggerKey, CancellationToken token = default)
         {
             return await _triggerRepository.TriggerExists(triggerKey).ConfigureAwait(false);
         }
 
-        public async Task ClearAllSchedulingData(CancellationToken token = default(CancellationToken))
+        public async Task ClearAllSchedulingData(CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     await _calendarRepository.DeleteAll().ConfigureAwait(false);
                     await _firedTriggerRepository.DeleteAll().ConfigureAwait(false);
@@ -410,11 +410,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task StoreCalendar(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     await StoreCalendarInternal(name, calendar, replaceExisting, updateTriggers, token).ConfigureAwait(false);
                 }
@@ -425,11 +425,11 @@ namespace Quartz.Spi.MongoDbJobStore
             }
         }
 
-        public async Task<bool> RemoveCalendar(string calName, CancellationToken token = default(CancellationToken))
+        public async Task<bool> RemoveCalendar(string calName, CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     return await RemoveCalendarInternal(calName).ConfigureAwait(false);
                 }
@@ -441,61 +441,61 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<ICalendar> RetrieveCalendar(string calName,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             var result = await _calendarRepository.GetCalendar(calName).ConfigureAwait(false);
             return result?.GetCalendar();
         }
 
-        public async Task<int> GetNumberOfJobs(CancellationToken token = default(CancellationToken))
+        public async Task<int> GetNumberOfJobs(CancellationToken token = default)
         {
             return (int) await _jobDetailRepository.GetCount().ConfigureAwait(false);
         }
 
-        public async Task<int> GetNumberOfTriggers(CancellationToken token = default(CancellationToken))
+        public async Task<int> GetNumberOfTriggers(CancellationToken token = default)
         {
             return (int) await _triggerRepository.GetCount().ConfigureAwait(false);
         }
 
-        public async Task<int> GetNumberOfCalendars(CancellationToken token = default(CancellationToken))
+        public async Task<int> GetNumberOfCalendars(CancellationToken token = default)
         {
             return (int) await _calendarRepository.GetCount().ConfigureAwait(false);
         }
 
         public async Task<IReadOnlyCollection<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             return (IReadOnlyCollection<JobKey>) new HashSet<JobKey>(await _jobDetailRepository.GetJobsKeys(matcher).ConfigureAwait(false)
                 );
         }
 
         public async Task<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             return (IReadOnlyCollection<TriggerKey>) new HashSet<TriggerKey>(await _triggerRepository
                 .GetTriggerKeys(matcher).ConfigureAwait(false));
         }
 
         public async Task<IReadOnlyCollection<string>> GetJobGroupNames(
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             return (IReadOnlyCollection<string>) await _jobDetailRepository.GetJobGroupNames().ConfigureAwait(false);
         }
 
         public async Task<IReadOnlyCollection<string>> GetTriggerGroupNames(
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             return await _triggerRepository.GetTriggerGroupNames().ConfigureAwait(false);
         }
 
         public async Task<IReadOnlyCollection<string>> GetCalendarNames(
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             return (IReadOnlyCollection<string>) await _calendarRepository.GetCalendarNames().ConfigureAwait(false);
         }
 
         public async Task<IReadOnlyCollection<IOperableTrigger>> GetTriggersForJob(JobKey jobKey,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             var result = await _triggerRepository.GetTriggers(jobKey).ConfigureAwait(false);
             return result.Select(trigger => trigger.GetTrigger())
@@ -504,7 +504,7 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<TriggerState> GetTriggerState(TriggerKey triggerKey,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             var trigger = await _triggerRepository.GetTrigger(triggerKey).ConfigureAwait(false);
 
@@ -531,11 +531,11 @@ namespace Quartz.Spi.MongoDbJobStore
             }
         }
 
-        public async Task PauseTrigger(TriggerKey triggerKey, CancellationToken token = default(CancellationToken))
+        public async Task PauseTrigger(TriggerKey triggerKey, CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     await PauseTriggerInternal(triggerKey).ConfigureAwait(false);
                 }
@@ -547,11 +547,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<IReadOnlyCollection<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     return await PauseTriggerGroupInternal(matcher, token).ConfigureAwait(false);
                 }
@@ -562,11 +562,11 @@ namespace Quartz.Spi.MongoDbJobStore
             }
         }
 
-        public async Task PauseJob(JobKey jobKey, CancellationToken token = default(CancellationToken))
+        public async Task PauseJob(JobKey jobKey, CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     var triggers = await GetTriggersForJob(jobKey, token).ConfigureAwait(false);
                     foreach (var operableTrigger in triggers)
@@ -580,11 +580,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<IReadOnlyCollection<string>> PauseJobs(GroupMatcher<JobKey> matcher,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     var jobKeys = await _jobDetailRepository.GetJobsKeys(matcher).ConfigureAwait(false);
                     foreach (var jobKey in jobKeys)
@@ -603,11 +603,11 @@ namespace Quartz.Spi.MongoDbJobStore
             }
         }
 
-        public async Task ResumeTrigger(TriggerKey triggerKey, CancellationToken token = default(CancellationToken))
+        public async Task ResumeTrigger(TriggerKey triggerKey, CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     await ResumeTriggerInternal(triggerKey, token).ConfigureAwait(false);
                 }
@@ -619,11 +619,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<IReadOnlyCollection<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     return await ResumeTriggersInternal(matcher, token).ConfigureAwait(false);
                 }
@@ -635,17 +635,17 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return (IReadOnlyCollection<string>) new HashSet<string>(await _pausedTriggerGroupRepository
                 .GetPausedTriggerGroups().ConfigureAwait(false));
         }
 
-        public async Task ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     var triggers = await _triggerRepository.GetTriggers(jobKey).ConfigureAwait(false);
                     await Task.WhenAll(triggers.Select(trigger =>
@@ -663,11 +663,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<IReadOnlyCollection<string>> ResumeJobs(GroupMatcher<JobKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     var jobKeys = await _jobDetailRepository.GetJobsKeys(matcher).ConfigureAwait(false);
                     foreach (var jobKey in jobKeys)
@@ -677,7 +677,7 @@ namespace Quartz.Spi.MongoDbJobStore
                             ResumeTriggerInternal(trigger.GetTrigger().Key, cancellationToken))).ConfigureAwait(false);
                     }
 
-                    return (IReadOnlyCollection<string>) new HashSet<string>(jobKeys.Select(key => key.Group));
+                    return new HashSet<string>(jobKeys.Select(key => key.Group));
                 }
             }
             catch (AggregateException ex)
@@ -690,11 +690,11 @@ namespace Quartz.Spi.MongoDbJobStore
             }
         }
 
-        public async Task PauseAll(CancellationToken token = default(CancellationToken))
+        public async Task PauseAll(CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     await PauseAllInternal().ConfigureAwait(false);
                 }
@@ -705,11 +705,11 @@ namespace Quartz.Spi.MongoDbJobStore
             }
         }
 
-        public async Task ResumeAll(CancellationToken token = default(CancellationToken))
+        public async Task ResumeAll(CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     await ResumeAllInternal().ConfigureAwait(false);
                 }
@@ -721,11 +721,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan,
-            int maxCount, TimeSpan timeWindow, CancellationToken token = default(CancellationToken))
+            int maxCount, TimeSpan timeWindow, CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     return await AcquireNextTriggersInternal(noLaterThan, maxCount, timeWindow).ConfigureAwait(false);
                 }
@@ -737,11 +737,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task ReleaseAcquiredTrigger(IOperableTrigger trigger,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     await _triggerRepository.UpdateTriggerState(trigger.Key, Models.TriggerState.Waiting,
                         Models.TriggerState.Acquired).ConfigureAwait(false);
@@ -755,11 +755,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task<IReadOnlyCollection<TriggerFiredResult>> TriggersFired(
-            IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken token = default(CancellationToken))
+            IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     var results = new List<TriggerFiredResult>();
 
@@ -790,11 +790,11 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         public async Task TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail,
-            SchedulerInstruction triggerInstCode, CancellationToken token = default(CancellationToken))
+            SchedulerInstruction triggerInstCode, CancellationToken token = default)
         {
             try
             {
-                using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                 {
                     await TriggeredJobCompleteInternal(trigger, jobDetail, triggerInstCode, token).ConfigureAwait(false)
                         ;
@@ -826,7 +826,7 @@ namespace Quartz.Spi.MongoDbJobStore
                 }
                 else
                 {
-                    using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+                    await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
                     {
                         result = await RecoverMisfiredJobsInternal(false).ConfigureAwait(false);
                     }
@@ -842,7 +842,7 @@ namespace Quartz.Spi.MongoDbJobStore
 
         private async Task RecoverJobs()
         {
-            using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
+            await using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId).ConfigureAwait(false))
             {
                 await RecoverJobsInternal().ConfigureAwait(false);
             }
@@ -866,7 +866,7 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         private async Task<IReadOnlyCollection<string>> PauseTriggerGroupInternal(GroupMatcher<TriggerKey> matcher,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             await _triggerRepository.UpdateTriggersStates(matcher, Models.TriggerState.Paused,
                 Models.TriggerState.Acquired,
@@ -975,7 +975,7 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         private async Task ResumeTriggerInternal(TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             var trigger = await _triggerRepository.GetTrigger(triggerKey).ConfigureAwait(false);
             if (trigger?.NextFireTime == null || trigger.NextFireTime == DateTime.MinValue)
@@ -1000,7 +1000,7 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         private async Task<IReadOnlyCollection<string>> ResumeTriggersInternal(GroupMatcher<TriggerKey> matcher,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             await _pausedTriggerGroupRepository.DeletePausedTriggerGroup(matcher).ConfigureAwait(false);
             var groups = new HashSet<string>();
@@ -1024,7 +1024,7 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         private async Task StoreCalendarInternal(string calName, ICalendar calendar, bool replaceExisting,
-            bool updateTriggers, CancellationToken token = default(CancellationToken))
+            bool updateTriggers, CancellationToken token = default)
         {
             var existingCal = await CalendarExists(calName, token).ConfigureAwait(false);
             if (existingCal && !replaceExisting)
@@ -1080,7 +1080,7 @@ namespace Quartz.Spi.MongoDbJobStore
 
         private async Task StoreTriggerInternal(IOperableTrigger newTrigger, IJobDetail job, bool replaceExisting,
             Models.TriggerState state, bool forceState, bool recovering,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default)
         {
             var existingTrigger = await _triggerRepository.TriggerExists(newTrigger.Key).ConfigureAwait(false);
 
@@ -1376,7 +1376,7 @@ namespace Quartz.Spi.MongoDbJobStore
         }
 
         private async Task TriggeredJobCompleteInternal(IOperableTrigger trigger, IJobDetail jobDetail,
-            SchedulerInstruction triggerInstCode, CancellationToken token = default(CancellationToken))
+            SchedulerInstruction triggerInstCode, CancellationToken token = default)
         {
             try
             {
