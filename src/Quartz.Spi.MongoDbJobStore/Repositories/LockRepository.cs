@@ -17,10 +17,12 @@ namespace Quartz.Spi.MongoDbJobStore.Repositories
         {
         }
 
-        public async Task<bool> TryAcquireLock(LockType lockType, string instanceId)
+        public async Task<bool> TryAcquireLock(LockType lockType, string instanceId, Guid? lockKey = null)
         {
+            lockKey = lockKey ?? Guid.NewGuid();
+
             var lockId = new LockId(lockType, InstanceName);
-            Log.Trace($"Trying to acquire lock {lockId} on {instanceId}");
+            Log.Trace($"Trying to acquire lock {lockId} on {instanceId} " + lockKey);
             try
             {
                 await Collection.InsertOneAsync(new Lock
@@ -29,31 +31,33 @@ namespace Quartz.Spi.MongoDbJobStore.Repositories
                     InstanceId = instanceId,
                     AquiredAt = DateTime.Now
                 });
-                Log.Trace($"Acquired lock {lockId} on {instanceId}");
+                Log.Trace($"Acquired lock {lockId} on {instanceId} " + lockKey);
                 return true;
             }
             catch (MongoWriteException)
             {
-                Log.Trace($"Failed to acquire lock {lockId} on {instanceId}");
+                Log.Trace($"Failed to acquire lock {lockId} on {instanceId} " + lockKey);
                 return false;
             }
         }
 
-        public async Task<bool> ReleaseLock(LockType lockType, string instanceId)
+        public async Task<bool> ReleaseLock(LockType lockType, string instanceId, Guid? lockKey = null)
         {
+            lockKey = lockKey ?? Guid.NewGuid();
+
             var lockId = new LockId(lockType, InstanceName);
-            Log.Trace($"Releasing lock {lockId} on {instanceId}");
+            Log.Trace($"Releasing lock {lockId} on {instanceId} " + lockKey);
             var result =
                 await Collection.DeleteOneAsync(
                     FilterBuilder.Where(@lock => @lock.Id == lockId && @lock.InstanceId == instanceId));
             if (result.DeletedCount > 0)
             {
-                Log.Trace($"Released lock {lockId} on {instanceId}");
+                Log.Trace($"Released lock {lockId} on {instanceId} " + lockKey);
                 return true;
             }
             else
             {
-                Log.Warn($"Failed to release lock {lockId} on {instanceId}. You do not own the lock.");
+                Log.Warn($"Failed to release lock {lockId} on {instanceId}. You do not own the lock. " + lockKey);
                 return false;
             }
         }

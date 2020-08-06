@@ -798,6 +798,8 @@ namespace Quartz.Spi.MongoDbJobStore
         public async Task TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail,
             SchedulerInstruction triggerInstCode, CancellationToken token = default(CancellationToken))
         {
+            Log.Info("N: Trigger " + trigger.Key + " completed notification started " + jobDetail.JobType.Name);
+
             try
             {
                 using (await _lockManager.AcquireLock(LockType.TriggerAccess, InstanceId))
@@ -811,6 +813,8 @@ namespace Quartz.Spi.MongoDbJobStore
                 {
                     SignalSchedulingChangeImmediately(sigTime);
                 }
+    
+                Log.Info("N: Trigger " + trigger.Key + " completed notification finished  " + jobDetail.JobType.Name);
             }
             catch (Exception ex)
             {
@@ -942,9 +946,12 @@ namespace Quartz.Spi.MongoDbJobStore
 
         private async Task<bool> RemoveTriggerInternal(TriggerKey key, IJobDetail job = null)
         {
+            Log.Info("N: Removing trigger started " + key + " " + job?.JobType.Name);
+
             var trigger = await _triggerRepository.GetTrigger(key);
             if (trigger == null)
             {
+                Log.Info("N: Trigger not found " + key + " " + job?.JobType.Name);
                 return false;
             }
 
@@ -966,6 +973,8 @@ namespace Quartz.Spi.MongoDbJobStore
                     }
                 }
             }
+
+            Log.Info("N: Trigger removed " + key + " " + job?.JobType.Name);
 
             return removedTrigger;
         }
@@ -1386,6 +1395,8 @@ namespace Quartz.Spi.MongoDbJobStore
         {
             try
             {
+                Log.Info("N: Schedule instruction processing started " + trigger.Key + " " + jobDetail.JobType.Name);
+                
                 switch (triggerInstCode)
                 {
                     case SchedulerInstruction.DeleteTrigger:
@@ -1441,6 +1452,9 @@ namespace Quartz.Spi.MongoDbJobStore
                 {
                     await _jobDetailRepository.UpdateJobData(jobDetail.Key, jobDetail.JobDataMap);
                 }
+                
+                Log.Info("N: Schedule instruction processing finished " + trigger.Key + " " + jobDetail.JobType.Name);
+
             }
             catch (Exception ex)
             {
