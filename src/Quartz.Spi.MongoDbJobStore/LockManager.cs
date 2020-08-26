@@ -10,7 +10,7 @@ using Quartz.Spi.MongoDbJobStore.Repositories;
 namespace Quartz.Spi.MongoDbJobStore
 {
     /// <summary>
-    /// Implements a simple distributed lock on top of MongoDB. It is not a reentrant lock so you can't 
+    /// Implements a simple distributed lock on top of MongoDB. It is not a reentrant lock so you can't
     /// acquire the lock more than once in the same thread of execution.
     /// </summary>
     internal class LockManager : IDisposable
@@ -58,11 +58,11 @@ namespace Quartz.Spi.MongoDbJobStore
                 await _pendingLocksSemaphore.WaitAsync();
                 try
                 {
-                    if (await _lockRepository.TryAcquireLock(lockType, instanceId, lockKey))
+                    if (await _lockRepository.TryAcquireLock(lockType, instanceId).ConfigureAwait(false))
                     {
                         Log.Info("N: Acquired lock " + lockKey);
 
-                        var lockInstance = new LockInstance(this, lockType, instanceId, lockKey);
+                        var lockInstance = new LockInstance(this, lockType, instanceId);
                         AddLock(lockInstance);
 
                         Log.Info("N: Lock ready " + lockKey);
@@ -77,7 +77,7 @@ namespace Quartz.Spi.MongoDbJobStore
 
                 Log.Info("N: Failed to acquired lock " + lockKey);
 
-                Thread.Sleep(SleepThreshold);
+                await Task.Delay(SleepThreshold);
             }
         }
         
@@ -87,7 +87,7 @@ namespace Quartz.Spi.MongoDbJobStore
             try
             {
 
-                _lockRepository.ReleaseLock(lockInstance.LockType, lockInstance.InstanceId, lockInstance.LockKey).GetAwaiter().GetResult();
+                _lockRepository.ReleaseLock(lockInstance.LockType, lockInstance.InstanceId).ConfigureAwait(false).GetAwaiter().GetResult();
 
                 Log.Info("N: Lock released " + lockInstance.LockKey);
 
@@ -126,14 +126,12 @@ namespace Quartz.Spi.MongoDbJobStore
         private class LockInstance : IDisposable
         {
             private readonly LockManager _lockManager;
-            public Guid LockKey { get; }
 
             private bool _disposed;
 
-            public LockInstance(LockManager lockManager, LockType lockType, string instanceId, Guid lockKey)
+            public LockInstance(LockManager lockManager, LockType lockType, string instanceId)
             {
                 _lockManager = lockManager;
-                LockKey = lockKey;
                 LockType = lockType;
                 InstanceId = instanceId;
             }

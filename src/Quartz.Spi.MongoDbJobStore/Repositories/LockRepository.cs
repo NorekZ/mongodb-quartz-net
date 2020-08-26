@@ -30,7 +30,7 @@ namespace Quartz.Spi.MongoDbJobStore.Repositories
                     Id = lockId,
                     InstanceId = instanceId,
                     AquiredAt = DateTime.Now
-                });
+                }).ConfigureAwait(false);
                 Log.Trace($"Acquired lock {lockId} on {instanceId} " + lockKey);
                 return true;
             }
@@ -49,7 +49,7 @@ namespace Quartz.Spi.MongoDbJobStore.Repositories
             Log.Trace($"Releasing lock {lockId} on {instanceId} " + lockKey);
             var result =
                 await Collection.DeleteOneAsync(
-                    FilterBuilder.Where(@lock => @lock.Id == lockId && @lock.InstanceId == instanceId));
+                    FilterBuilder.Where(@lock => @lock.Id == lockId && @lock.InstanceId == instanceId)).ConfigureAwait(false);
             if (result.DeletedCount > 0)
             {
                 Log.Trace($"Released lock {lockId} on {instanceId} " + lockKey);
@@ -65,7 +65,7 @@ namespace Quartz.Spi.MongoDbJobStore.Repositories
         public override async Task EnsureIndex()
         {
             await Collection.Indexes.CreateOneAsync(IndexBuilder.Ascending(@lock => @lock.AquiredAt),
-                new CreateIndexOptions() {ExpireAfter = TimeSpan.FromSeconds(30)});
+                new CreateIndexOptions() {ExpireAfter = TimeSpan.FromSeconds(30)}).ConfigureAwait(false);
         }
     }
 }
