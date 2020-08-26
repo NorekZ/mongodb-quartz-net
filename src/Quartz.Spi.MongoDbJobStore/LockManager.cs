@@ -89,7 +89,7 @@ namespace Quartz.Spi.MongoDbJobStore
 
                 _lockRepository.ReleaseLock(lockInstance.LockType, lockInstance.InstanceId).ConfigureAwait(false).GetAwaiter().GetResult();
 
-                Log.Info("N: Lock released " + lockInstance.LockKey);
+                Log.Info("N: Lock released " + lockInstance.InstanceId);
 
                 LockReleased(lockInstance);
             }
