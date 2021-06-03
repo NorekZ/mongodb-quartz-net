@@ -444,7 +444,7 @@ namespace Quartz.Spi.MongoDbJobStore
             CancellationToken token = default(CancellationToken))
         {
             var result = await _calendarRepository.GetCalendar(calName).ConfigureAwait(false);
-            return result?.GetCalendar();
+            return result?.Instance;
         }
 
         public async Task<int> GetNumberOfJobs(CancellationToken token = default(CancellationToken))
@@ -1181,7 +1181,7 @@ namespace Quartz.Spi.MongoDbJobStore
             if (trigger.CalendarName != null)
             {
                 calendar = (await _calendarRepository.GetCalendar(trigger.CalendarName).ConfigureAwait(false))
-                    ?.GetCalendar();
+                    ?.Instance;
                 if (calendar == null)
                 {
                     return null;
@@ -1263,7 +1263,7 @@ namespace Quartz.Spi.MongoDbJobStore
             ICalendar cal = null;
             if (trigger.CalendarName != null)
             {
-                cal = (await _calendarRepository.GetCalendar(trigger.CalendarName).ConfigureAwait(false)).GetCalendar();
+                cal = (await _calendarRepository.GetCalendar(trigger.CalendarName).ConfigureAwait(false)).Instance;
             }
 
             await _schedulerSignaler.NotifyTriggerListenersMisfired(operableTrigger).ConfigureAwait(false);
